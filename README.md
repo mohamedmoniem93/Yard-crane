@@ -3,7 +3,7 @@
 
 2 Urgently needed modifications:
 
-1st modification
+1st modification (Compeleted!)
 ----------------
 I want the output to display total y(i,j) for all x(i,j,t) in the output
 
