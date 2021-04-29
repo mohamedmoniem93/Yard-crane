@@ -207,18 +207,23 @@ def get_optimum_y(optimum_x):
     # Only get numbers out of var name
     # input
     # [
-    #    (x[2, 1, 1], 1)
+    #    (x[2, 1, 1], 1),
+    #    (x[20, 1, 1], 1),
     # ]
     # Output
     # [
-    #    [2, 1, 1, 1]
+    #    [2, 1, 1, 1],
+    #    [20, 1, 1, 1],
     # ]
     optimum_y = []
     for opt_x in optimum_x:
         cur_y = []
-        for char in opt_x[0]:
-            if char.isdigit():
-                cur_y.append(int(char))
+        for str in opt_x[0].split(","):
+            cur_number = ""
+            for char in str:
+                if char.isdigit():
+                    cur_number += char
+            cur_y.append(int(cur_number))
         cur_y.append(opt_x[1])
         optimum_y.append(cur_y)
     return optimum_y
@@ -237,6 +242,7 @@ def get_total_y(optimum_y):
 
 opt_x = get_optimum_x()
 opt_y = get_optimum_y(opt_x)
+print(opt_y)
 total_y = get_total_y(opt_y)
 
 print(f"Distance Matrix: \n {y}")
