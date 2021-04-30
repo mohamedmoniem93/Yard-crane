@@ -8,7 +8,7 @@ Created on Tue Oct 15 10:52:33 2019
 """
 
 # Yard crane scheduling
-
+import random
 from gurobipy import *
 
 NUMBER_OF_BLOCKS = 10
@@ -35,10 +35,6 @@ def place_blocks():
     return grid
 
 
-if __name__ == "__main__":
-    place_blocks()
-
-
 # initiate the model
 m = Model()
 
@@ -51,44 +47,39 @@ yt = 150
 
 sourceblock = [i for i in range(1, NUMBER_OF_BLOCKS + 1)]
 destblock = [i for i in range(1, NUMBER_OF_BLOCKS + 1)]
-shifts = [1]
+NUMBER_OF_SHIFTS = 1
+shifts = [i for i in range(1, NUMBER_OF_SHIFTS + 1)]
 
 
-import random
+def create_H():
+    """
+    Create a dictionary keys= (block#, shift#): random between (0-2)
+    :returns H (# H= {(1, 1): 2, (2, 1): 0, (3, 1): 0, (4, 1): 0, (5, 1): 2, (6, 1): 0})
+    """
+    h = {}
+    for t in shifts:
+        for block in range(1, NUMBER_OF_BLOCKS + 1):
+            h[(block, t)] = random.randint(0, 2)
+    return h
 
-Random = []
-for i in range(NUMBER_OF_BLOCKS):
-    x = random.randint(0, 2)
-    Random.append(x)
-# print(Random)
-IT = []
-for i in range(1, NUMBER_OF_BLOCKS + 1):
-    for j in range(1, 2):
-        IT.append(tuple([i, j]))
-# print(IT)
-H = dict(zip(IT, Random))
-print("H=", H)
 
-import random
+def create_B():
+    """
+    Create a dictionary keys= (block#, shift#): random between (0-2)
+    This is done for the first shift only, after that B is updated from the solution
+    :returns B (# b= {(1, 1): 1, (2, 1): 2, (3, 1): 2, (4, 1): 0, (5, 1): 1, (6, 1): 1})
+    """
+    b = {}
+    t = 1
+    for block in range(1, NUMBER_OF_BLOCKS + 1):
+        b[(block, t)] = random.randint(0, 2)
+    return b
 
-Random = []
-for i in range(NUMBER_OF_BLOCKS):
-    x = random.randint(0, 2)
-    Random.append(x)
-# print(Random)
-IT = []
-for i in range(1, NUMBER_OF_BLOCKS + 1):
-    for j in range(1, 2):
-        IT.append(tuple([i, j]))
-# print(IT)
-b = dict(zip(IT, Random))
-print("b=", b)
 
-# H= {(1, 1): 2, (2, 1): 0, (3, 1): 0, (4, 1): 0, (5, 1): 2, (6, 1): 0}
-# b= {(1, 1): 1, (2, 1): 2, (3, 1): 2, (4, 1): 0, (5, 1): 1, (6, 1): 1}
+H = create_H()
+b = create_B()
 
 I = place_blocks()
-
 J = place_blocks()
 
 y = {}
@@ -134,44 +125,65 @@ for i in sourceblock:
 m.update()
 # Constraints
 
-# total number of yard cranes moving from block i to block j at each time period t are no more than one
 
-for t in shifts:
+def first_constraint(shift):
+    """
+    total number of yard cranes moving from block i to block j at each time period t are no more than one
+    :param shift: Current shift number
+    """
     for i in sourceblock:
-        cont_1 = m.addConstr(quicksum(x[i, j, t] for j in destblock) <= 2)
-##
-###the number of yard cranes moving from block j to block i are no more than two
-##
-for t in shifts:
+        m.addConstr(quicksum(x[i, j, shift] for j in destblock) <= 2)
+
+
+def second_constraint(shift):
+    """
+    the number of yard cranes moving from block j to block i are no more than two
+    :param shift: Current shift number
+    """
     for j in destblock:
-        cont_2 = m.addConstr(quicksum(x[i, j, t] for i in sourceblock) <= 2)
-#
-# total number of yard cranes moving from block j to block i for each time period t are not less than the required number of yard cranes that needs to be delivered to block i
-#
-for t in shifts:
+        m.addConstr(quicksum(x[i, j, shift] for i in sourceblock) <= 2)
+
+
+def third_constraint(shift):
+    """
+    total number of yard cranes moving from block j to block i for each time period t are not less than the required number of yard cranes that needs to be delivered to block i
+    :param shift: Current shift number
+    """
     for j in sourceblock:
-        cont_3 = m.addConstr(
-            (H[j, t] - b[j, t]) <= quicksum(x[i, j, t] for i in sourceblock)
+        m.addConstr(
+            (H[j, shift] - b[j, shift]) <= quicksum(x[i, j, t] for i in sourceblock)
         )
 
-# ensures no yard cranes moves from block ⅈ to any block j at each time period t if it’s number of required yard cranes are less than the number of yard cranes already available at the block.
-for t in shifts:
-    for j in destblock:
-        if b[j, t] <= H[j, t]:
-            cont_5 = m.addConstr(quicksum(x[j, i, t] for i in sourceblock) == 0)
 
-# ensures the total number of yard cranes remaining at block j remains satisfactory after some YC(s) left block j to all blocks at each time period t.
-for t in shifts:
+def fifth_constraint(shift):
+    """
+    ensures no yard cranes moves from block ⅈ to any block j at each time period t if it’s number of required yard cranes are less than the number of yard cranes already available at the block.
+    :param shift: Current shift number
+    """
     for j in destblock:
-        cont_6 = m.addConstr(
-            abs(b[j, t] - H[j, t]) >= quicksum(x[j, i, t] for i in sourceblock)
+        if b[j, shift] <= H[j, shift]:
+            m.addConstr(quicksum(x[j, i, shift] for i in sourceblock) == 0)
+
+
+def sixth_constraint(shift):
+    """
+    ensures the total number of yard cranes remaining at block j remains satisfactory after some YC(s) left block j to all blocks at each time period t.
+    :param shift: Current shift number
+    """
+    for j in destblock:
+        m.addConstr(
+            abs(b[j, shift] - H[j, shift]) >= quicksum(x[j, i, shift] for i in sourceblock)
         )
 
-# ensures that the number of yard cranes moving along a row of blocks are non-negativity.
-for t in shifts:
+
+def seventh_constraint(shift):
+    """
+    ensures that the number of yard cranes moving along a row of blocks are non-negativity.
+    :param shift: Current shift number
+    """
     for i in sourceblock:
         for j in destblock:
-            cont_6 = m.addConstr(x[i, j, t] >= 0)
+            m.addConstr(x[i, j, shift] >= 0)
 
 # objective function
 m.setObjective(
@@ -240,11 +252,24 @@ def get_total_y(optimum_y):
     return total_y
 
 
+def update_b_values(optimum_y):
+    """
+    Takes in co-ordinates of x and values of cranes and update b array
+
+    :param optimum_y: [
+    #     i , j , t (shift), quantity
+    #    [2, 1, 1, 1],
+    #    [20, 1, 1, 1],
+    # ]
+    :return: New b array
+    """
+
+
 opt_x = get_optimum_x()
 opt_y = get_optimum_y(opt_x)
 print(opt_y)
 total_y = get_total_y(opt_y)
 
-print(f"Distance Matrix: \n {y}")
+# print(f"Distance Matrix: \n {y}")
 print(f"Total Y: {total_y}")
 
