@@ -39,6 +39,16 @@ calculate_distance_matrix(I, J, y)
 
 for shift in shifts:
 
+    curr_y = 0
+    ready_for_model, penalty = input_ready(NUMBER_OF_BLOCKS, b, H, shift)
+    if not ready_for_model:
+        print(f"Spare cranes are needed with the following distribution: {penalty}")
+        # Update b with added cranes
+        add_penalty_cranes_to_b(b, penalty, shift)
+        # Add penalty distance to y
+        curr_y += calculate_penalty_distance(penalty)
+        print(f"Added penalty of {curr_y} to the total distance")
+
     # initiate the model
     m = Model()
 
@@ -74,7 +84,7 @@ for shift in shifts:
     # OUTPUT
     opt_x = get_optimum_x(m)
     opt_y = get_optimum_y(opt_x)
-    curr_y = get_total_y(opt_y, y)
+    curr_y += get_total_y(opt_y, y)
     total_y += curr_y
 
     # UPDATE B for next shift

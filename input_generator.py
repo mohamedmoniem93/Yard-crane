@@ -83,3 +83,67 @@ def calculate_distance_matrix(I, J, y):
                     + (4 * yt)
                 )
                 y[(k1, k2)] = y3
+
+
+def input_ready(number_of_blocks, b, h, cur_shift):
+    """
+    Returns True and {} penalty if b total is more than or equal h total in each shift
+    Returns False and the penalty dictionary (block: penalty value) otherwise
+    :param b: available cranes, b = { (block, shift): value}
+    :param h: needed cranes, h =  { (block, shift): value}
+    :param cur_shift: Number of shf
+    :return: Returns True if b total is more than or equal h total
+    Returns False otherwise and a dictionary with blocks and values
+    penalty_dict = {3: 1, 2: 5}
+    """
+    penalty_dict = {}
+    b_sum = 0
+    h_sum = 0
+    for block in range(1, number_of_blocks + 1):
+        b_sum += b[(block, cur_shift)]
+        h_sum += h[(block, cur_shift)]
+
+    if b_sum >= h_sum:
+        return True, {}
+
+    penalty = int(h_sum - b_sum)
+
+    # Assign random positions for penalty cranes
+    for _ in range(0, penalty):
+        random_block = random.randint(1, number_of_blocks)
+        # This is a constraint, we can't have more than 2 cranes per block
+        while b[(random_block, cur_shift)] == 2:
+            random_block = random.randint(1, number_of_blocks)
+
+        # Check if we already added a penalty block before
+        if random_block in penalty_dict:
+            penalty_dict[random_block] += 1
+        else:
+            penalty_dict[random_block] = 1
+
+    return False, penalty_dict
+
+
+def add_penalty_cranes_to_b(b, penalty, cur_shift):
+    """
+    Add penalty blocks to b(available cranes)
+    :param b: Available cranes dictionary
+    :param penalty: Dictionary containing blocks to the penalty cranes
+    penalty = {1: 2, 2: 4}, this means that we will add 2 cranes to first block and 4 cranes to second block
+    :return: Nothing, just updates b
+    """
+    for block, value in penalty.items():
+        b[(block, cur_shift)] += value
+
+
+def calculate_penalty_distance(penalty):
+    """
+    Calculates penalty distance added by getting the penalty cranes
+    :param penalty: Dictionary of cranes needed per block id
+    :return: A integer representing the penalty distance
+    """
+    GET_FROM_SPARE_BLOCK_PENALTY = 1000
+    added_distance = 0
+    for block, value in penalty.items():
+        added_distance += value * GET_FROM_SPARE_BLOCK_PENALTY
+    return added_distance
