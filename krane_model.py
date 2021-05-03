@@ -11,9 +11,21 @@ Created on Tue Oct 15 10:52:33 2019
 import random
 from gurobipy import *
 
+
+# CONSTANTS / INPUTS
 NUMBER_OF_BLOCKS = 10
 ROWS = 5
 COLS = 2
+
+sourceblock = [i for i in range(1, NUMBER_OF_BLOCKS + 1)]
+destblock = [i for i in range(1, NUMBER_OF_BLOCKS + 1)]
+NUMBER_OF_SHIFTS = 3
+shifts = [i for i in range(1, NUMBER_OF_SHIFTS + 1)]
+
+TB = 6
+yr = 50
+TC = 6
+yt = 150
 
 
 def place_blocks():
@@ -33,22 +45,6 @@ def place_blocks():
         index += 1
 
     return grid
-
-
-# initiate the model
-m = Model()
-
-# Modeldata
-
-TB = 6
-yr = 50
-TC = 6
-yt = 150
-
-sourceblock = [i for i in range(1, NUMBER_OF_BLOCKS + 1)]
-destblock = [i for i in range(1, NUMBER_OF_BLOCKS + 1)]
-NUMBER_OF_SHIFTS = 1
-shifts = [i for i in range(1, NUMBER_OF_SHIFTS + 1)]
 
 
 def create_H():
@@ -76,57 +72,7 @@ def create_B():
     return b
 
 
-H = create_H()
-b = create_B()
-
-I = place_blocks()
-J = place_blocks()
-
-y = {}
-# same rows and adj columns
-for k1, v1 in I.items():
-    for k2, v2 in J.items():
-        if v1[0] == v2[0] and abs(v1[1] - v2[1]) == 1:
-            y1 = abs(v1[1] - v2[1]) * 210
-            y[(k1, k2)] = y1
-        # same columns and diff rows
-        elif v1[1] == v2[1] and v1[0] != v2[0]:
-            y5 = abs(v1[0] - v2[0]) * 46 + (2 * yt)
-            y[(k1, k2)] = y5
-        # diff rows and adj columns
-        elif v1[0] != v2[0] and abs(v1[1] - v2[1]) == 1:
-            y2 = abs(v1[1] - v2[1]) * 210 + abs(v1[0] - v2[0]) * 46 + (2 * yt)
-            y[(k1, k2)] = y2
-        elif k1 == k2:
-            y[(k1, k2)] = 10000000
-        else:
-            y3 = (
-                abs(v1[1] - v2[1]) * 210
-                + abs(v1[0] - 1)
-                + abs(v2[0] - 1) * 46
-                + (2 * yr)
-                + (4 * yt)
-            )
-            y[(k1, k2)] = y3
-
-print("y[i,j]=", y)
-
-m.update()
-
-# Decision variables
-x = {}
-for i in sourceblock:
-    for j in destblock:
-        for t in shifts:
-            x[i, j, t] = m.addVar(
-                lb=0.0, ub=2.0, vtype=GRB.INTEGER, name="x[%s,%s,%s]" % (i, j, t)
-            )
-
-m.update()
-# Constraints
-
-
-def first_constraint(shift):
+def first_constraint(shift, x):
     """
     total number of yard cranes moving from block i to block j at each time period t are no more than one
     :param shift: Current shift number
@@ -135,7 +81,7 @@ def first_constraint(shift):
         m.addConstr(quicksum(x[i, j, shift] for j in destblock) <= 2)
 
 
-def second_constraint(shift):
+def second_constraint(shift, x):
     """
     the number of yard cranes moving from block j to block i are no more than two
     :param shift: Current shift number
@@ -144,18 +90,18 @@ def second_constraint(shift):
         m.addConstr(quicksum(x[i, j, shift] for i in sourceblock) <= 2)
 
 
-def third_constraint(shift):
+def third_constraint(shift, b, H, x):
     """
     total number of yard cranes moving from block j to block i for each time period t are not less than the required number of yard cranes that needs to be delivered to block i
     :param shift: Current shift number
     """
     for j in sourceblock:
         m.addConstr(
-            (H[j, shift] - b[j, shift]) <= quicksum(x[i, j, t] for i in sourceblock)
+            (H[j, shift] - b[j, shift]) <= quicksum(x[i, j, shift] for i in sourceblock)
         )
 
 
-def fifth_constraint(shift):
+def fifth_constraint(shift, b, H, x):
     """
     ensures no yard cranes moves from block ⅈ to any block j at each time period t if it’s number of required yard cranes are less than the number of yard cranes already available at the block.
     :param shift: Current shift number
@@ -165,7 +111,7 @@ def fifth_constraint(shift):
             m.addConstr(quicksum(x[j, i, shift] for i in sourceblock) == 0)
 
 
-def sixth_constraint(shift):
+def sixth_constraint(shift, b, H, x):
     """
     ensures the total number of yard cranes remaining at block j remains satisfactory after some YC(s) left block j to all blocks at each time period t.
     :param shift: Current shift number
@@ -176,7 +122,7 @@ def sixth_constraint(shift):
         )
 
 
-def seventh_constraint(shift):
+def seventh_constraint(shift, x):
     """
     ensures that the number of yard cranes moving along a row of blocks are non-negativity.
     :param shift: Current shift number
@@ -184,25 +130,6 @@ def seventh_constraint(shift):
     for i in sourceblock:
         for j in destblock:
             m.addConstr(x[i, j, shift] >= 0)
-
-# objective function
-m.setObjective(
-    quicksum(
-        x[i, j, t] * y[i, j] * 0.0085
-        for i in sourceblock
-        for j in destblock
-        for t in shifts
-    ),
-    GRB.MINIMIZE,
-)
-
-# print(quicksum(x[i,j,t] * y[i,j] for i in sourceblock for j in destblock for t in shifts)
-
-m.write("mod.lp")
-# m.computeIIS()
-# m.write('modi.ilp')
-m.optimize()
-m.printAttr("x", "x*")
 
 
 def get_optimum_x():
@@ -252,24 +179,122 @@ def get_total_y(optimum_y):
     return total_y
 
 
-def update_b_values(optimum_y):
+def update_b_values(b, optimum_y, last_shift):
     """
     Takes in co-ordinates of x and values of cranes and update b array
-
+    :param b: b dictionary
     :param optimum_y: [
     #     i , j , t (shift), quantity
     #    [2, 1, 1, 1],
     #    [20, 1, 1, 1],
     # ]
-    :return: New b array
+    :return: Nothing, it changes b internally
     """
+    # Create entries for the next shift
+    new_shift_dictionary = {}
+    for key, value in b.items():
+        src_block, solution_shift = key[0], key[1]
+        if solution_shift == last_shift:
+            new_shift_dictionary[(src_block, last_shift + 1)] = value
+
+    # Get the optimum solution for the last shift and update the values
+    for op_y in optimum_y:
+        src_block, d_block, quantity = op_y[0], op_y[1], op_y[3]
+        # Take from the src block and add it to the d_block
+        new_shift_dictionary[(src_block, last_shift + 1)] -= quantity
+        new_shift_dictionary[(d_block, last_shift + 1)] += quantity
+
+    b.update(new_shift_dictionary)
 
 
-opt_x = get_optimum_x()
-opt_y = get_optimum_y(opt_x)
-print(opt_y)
-total_y = get_total_y(opt_y)
+# START
+H = {}
+b = {}
+total_y = 0
+for shift in shifts:
 
-# print(f"Distance Matrix: \n {y}")
+    # initiate the model
+    m = Model()
+
+    if shift == 1:
+        b = create_B()
+        H = create_H()
+
+    I = place_blocks()
+    J = place_blocks()
+
+    y = {}
+    # same rows and adj columns
+    for k1, v1 in I.items():
+        for k2, v2 in J.items():
+            if v1[0] == v2[0] and abs(v1[1] - v2[1]) == 1:
+                y1 = abs(v1[1] - v2[1]) * 210
+                y[(k1, k2)] = y1
+            # same columns and diff rows
+            elif v1[1] == v2[1] and v1[0] != v2[0]:
+                y5 = abs(v1[0] - v2[0]) * 46 + (2 * yt)
+                y[(k1, k2)] = y5
+            # diff rows and adj columns
+            elif v1[0] != v2[0] and abs(v1[1] - v2[1]) == 1:
+                y2 = abs(v1[1] - v2[1]) * 210 + abs(v1[0] - v2[0]) * 46 + (2 * yt)
+                y[(k1, k2)] = y2
+            elif k1 == k2:
+                y[(k1, k2)] = 10000000
+            else:
+                y3 = (
+                    abs(v1[1] - v2[1]) * 210
+                    + abs(v1[0] - 1)
+                    + abs(v2[0] - 1) * 46
+                    + (2 * yr)
+                    + (4 * yt)
+                )
+                y[(k1, k2)] = y3
+
+
+    m.update()
+
+    # Decision variables
+    x = {}
+    for i in sourceblock:
+        for j in destblock:
+            x[i, j, shift] = m.addVar(
+                lb=0.0, ub=2.0, vtype=GRB.INTEGER, name="x[%s,%s,%s]" % (i, j, shift)
+            )
+
+    # CONSTRAINTS
+    m.update()
+    first_constraint(shift, x)
+    second_constraint(shift, x)
+    third_constraint(shift, b, H, x)
+    fifth_constraint(shift, b, H, x)
+    sixth_constraint(shift, b, H, x)
+    seventh_constraint(shift, x)
+
+    # objective function
+    m.setObjective(
+        quicksum(
+            x[i, j, shift] * y[i, j] * 0.0085
+            for i in sourceblock
+            for j in destblock
+        ),
+        GRB.MINIMIZE,
+    )
+
+    m.write("mod.lp")
+    m.optimize()
+    m.printAttr("x", "x*")
+
+    opt_x = get_optimum_x()
+    opt_y = get_optimum_y(opt_x)
+
+    curr_y = get_total_y(opt_y)
+    print(f"Y for current shift: {shift} equals = {curr_y}")
+    total_y += curr_y
+
+    # print(f"b before update \n{b}")
+    update_b_values(b, opt_y, shift)
+    print(f"SHIFT={shift}, Updated b,\n {b}")
+
+
 print(f"Total Y: {total_y}")
 
