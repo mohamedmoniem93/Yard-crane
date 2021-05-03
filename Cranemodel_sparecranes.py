@@ -13,13 +13,13 @@ COLS = 6
 
 
 def place_blocks():
-#    """
-#    Places blocks on the given rows and columns
-#    :return: grid as a map of
-#    """
+    #    """
+    #    Places blocks on the given rows and columns
+    #    :return: grid as a map of
+    #    """
     if ROWS * COLS < NUMBER_OF_BLOCKS:
         raise Exception("Blocks more than grid")
-    
+
     if ROWS * COLS > NUMBER_OF_BLOCKS:
         raise Exception("Blocks less than grid")
 
@@ -156,8 +156,11 @@ for t in shifts:
 for t in shifts:
     for j in sourceblock:
         cont_3 = m.addConstr(
-            (H[j, t] - b[j, t]) <= quicksum(x[i, j, t] for i in sourceblock) + quicksum(p[i, j, t] for i in sourceblock))
-        
+            (H[j, t] - b[j, t])
+            <= quicksum(x[i, j, t] for i in sourceblock)
+            + quicksum(p[i, j, t] for i in sourceblock)
+        )
+
 
 # ensures no yard cranes moves from block ⅈ to any block j at each time period t if it’s number of required yard cranes are less than the number of yard cranes already available at the block.
 for t in shifts:
@@ -172,8 +175,10 @@ for t in shifts:
 ##            abs(b[j, t] - H[j, t]) >= quicksum(x[j, i, t] for i in sourceblock)
 #        )
 for t in shifts:
-    cont_8= m.addConstr(
-            quicksum(b[i,t] for i in sourceblock) - quicksum(H[i,t] for i in sourceblock) <= quicksum (p [i,j,t] for i in sourceblock for j in destblock))
+    cont_8 = m.addConstr(
+        quicksum(b[i, t] for i in sourceblock) - quicksum(H[i, t] for i in sourceblock)
+        <= quicksum(p[i, j, t] for i in sourceblock for j in destblock)
+    )
 
 
 # ensures that the number of yard cranes moving along a row of blocks are non-negativity.
@@ -181,7 +186,7 @@ for t in shifts:
     for i in sourceblock:
         for j in destblock:
             cont_6 = m.addConstr(x[i, j, t] >= 0)
-            
+
 for t in shifts:
     for i in sourceblock:
         for j in destblock:
@@ -190,18 +195,29 @@ for t in shifts:
 # objective function
 m.setObjective(
     quicksum(
-        x[i, j, t] * y[i, j] * 0.0085 for i in sourceblock for j in destblock for t in shifts) + quicksum(
-        p[i, j, t] * y[i, j] * 0.0085 for i in sourceblock for j in destblock for t in shifts),
-    GRB.MINIMIZE)
+        x[i, j, t] * y[i, j] * 0.0085
+        for i in sourceblock
+        for j in destblock
+        for t in shifts
+    )
+    + quicksum(
+        p[i, j, t] * y[i, j] * 0.0085
+        for i in sourceblock
+        for j in destblock
+        for t in shifts
+    ),
+    GRB.MINIMIZE,
+)
 
 # print(quicksum(x[i,j,t] * y[i,j] for i in sourceblock for j in destblock for t in shifts)
 
 m.write("mod.lp")
 ##m.computeIIS()
-#m.write('modi.ilp')
+# m.write('modi.ilp')
 m.optimize()
 m.printAttr("x", "x*")
-print (p)
+print(p)
+
 
 def get_optimum_x():
     # Get all x that have a value
@@ -249,5 +265,5 @@ opt_x = get_optimum_x()
 opt_y = get_optimum_y(opt_x)
 total_y = get_total_y(opt_y)
 
-#print(f"Distance Matrix: \n {y}")
+# print(f"Distance Matrix: \n {y}")
 print(f"Total Y: {total_y}")

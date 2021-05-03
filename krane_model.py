@@ -10,6 +10,7 @@ Created on Tue Oct 15 10:52:33 2019
 # Yard crane scheduling
 import random
 from gurobipy import *
+from constraints import *
 
 
 # CONSTANTS / INPUTS
@@ -70,66 +71,6 @@ def create_B():
     for block in range(1, NUMBER_OF_BLOCKS + 1):
         b[(block, t)] = random.randint(0, 2)
     return b
-
-
-def first_constraint(shift, x):
-    """
-    total number of yard cranes moving from block i to block j at each time period t are no more than one
-    :param shift: Current shift number
-    """
-    for i in sourceblock:
-        m.addConstr(quicksum(x[i, j, shift] for j in destblock) <= 2)
-
-
-def second_constraint(shift, x):
-    """
-    the number of yard cranes moving from block j to block i are no more than two
-    :param shift: Current shift number
-    """
-    for j in destblock:
-        m.addConstr(quicksum(x[i, j, shift] for i in sourceblock) <= 2)
-
-
-def third_constraint(shift, b, H, x):
-    """
-    total number of yard cranes moving from block j to block i for each time period t are not less than the required number of yard cranes that needs to be delivered to block i
-    :param shift: Current shift number
-    """
-    for j in sourceblock:
-        m.addConstr(
-            (H[j, shift] - b[j, shift]) <= quicksum(x[i, j, shift] for i in sourceblock)
-        )
-
-
-def fifth_constraint(shift, b, H, x):
-    """
-    ensures no yard cranes moves from block ⅈ to any block j at each time period t if it’s number of required yard cranes are less than the number of yard cranes already available at the block.
-    :param shift: Current shift number
-    """
-    for j in destblock:
-        if b[j, shift] <= H[j, shift]:
-            m.addConstr(quicksum(x[j, i, shift] for i in sourceblock) == 0)
-
-
-def sixth_constraint(shift, b, H, x):
-    """
-    ensures the total number of yard cranes remaining at block j remains satisfactory after some YC(s) left block j to all blocks at each time period t.
-    :param shift: Current shift number
-    """
-    for j in destblock:
-        m.addConstr(
-            abs(b[j, shift] - H[j, shift]) >= quicksum(x[j, i, shift] for i in sourceblock)
-        )
-
-
-def seventh_constraint(shift, x):
-    """
-    ensures that the number of yard cranes moving along a row of blocks are non-negativity.
-    :param shift: Current shift number
-    """
-    for i in sourceblock:
-        for j in destblock:
-            m.addConstr(x[i, j, shift] >= 0)
 
 
 def get_optimum_x():
@@ -207,23 +148,14 @@ def update_b_values(b, optimum_y, last_shift):
     b.update(new_shift_dictionary)
 
 
-# START
-H = {}
-b = {}
-total_y = 0
-for shift in shifts:
-
-    # initiate the model
-    m = Model()
-
-    if shift == 1:
-        b = create_B()
-        H = create_H()
-
-    I = place_blocks()
-    J = place_blocks()
-
-    y = {}
+def calculate_distance_matrix(I, J, y):
+    """
+    Takes in I, J arrays and calculate the distance matrix out of it
+    :param I: Source blocks
+    :param J: Destination blocks
+    :param y: Distance matrix as dictionary
+    :return: Nothing, it changes y value
+    """
     # same rows and adj columns
     for k1, v1 in I.items():
         for k2, v2 in J.items():
@@ -242,15 +174,33 @@ for shift in shifts:
                 y[(k1, k2)] = 10000000
             else:
                 y3 = (
-                    abs(v1[1] - v2[1]) * 210
-                    + abs(v1[0] - 1)
-                    + abs(v2[0] - 1) * 46
-                    + (2 * yr)
-                    + (4 * yt)
+                        abs(v1[1] - v2[1]) * 210
+                        + abs(v1[0] - 1)
+                        + abs(v2[0] - 1) * 46
+                        + (2 * yr)
+                        + (4 * yt)
                 )
                 y[(k1, k2)] = y3
 
 
+# START
+H = {}
+b = {}
+total_y = 0
+for shift in shifts:
+
+    # initiate the model
+    m = Model()
+
+    if shift == 1:
+        b = create_B()
+        H = create_H()
+
+    I = place_blocks()
+    J = place_blocks()
+
+    y = {}
+    calculate_distance_matrix(I, J, y)
     m.update()
 
     # Decision variables
@@ -263,19 +213,17 @@ for shift in shifts:
 
     # CONSTRAINTS
     m.update()
-    first_constraint(shift, x)
-    second_constraint(shift, x)
-    third_constraint(shift, b, H, x)
-    fifth_constraint(shift, b, H, x)
-    sixth_constraint(shift, b, H, x)
-    seventh_constraint(shift, x)
+    first_constraint(sourceblock, m, destblock, shift, x)
+    second_constraint(sourceblock, m, destblock, shift, x)
+    third_constraint(sourceblock, m, destblock, shift, b, H, x)
+    fifth_constraint(sourceblock, m, destblock, shift, b, H, x)
+    sixth_constraint(sourceblock, m, destblock, shift, b, H, x)
+    seventh_constraint(sourceblock, m, destblock, shift, x)
 
     # objective function
     m.setObjective(
         quicksum(
-            x[i, j, shift] * y[i, j] * 0.0085
-            for i in sourceblock
-            for j in destblock
+            x[i, j, shift] * y[i, j] * 0.0085 for i in sourceblock for j in destblock
         ),
         GRB.MINIMIZE,
     )
@@ -297,4 +245,3 @@ for shift in shifts:
 
 
 print(f"Total Y: {total_y}")
-
