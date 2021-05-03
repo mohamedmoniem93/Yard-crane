@@ -13,13 +13,13 @@ COLS = 2
 
 
 def place_blocks():
-#    """
-#    Places blocks on the given rows and columns
-#    :return: grid as a map of
-#    """
+    #    """
+    #    Places blocks on the given rows and columns
+    #    :return: grid as a map of
+    #    """
     if ROWS * COLS < NUMBER_OF_BLOCKS:
         raise Exception("Blocks more than grid")
-    
+
     if ROWS * COLS > NUMBER_OF_BLOCKS:
         raise Exception("Blocks less than grid")
 
@@ -51,42 +51,42 @@ NC = 25
 
 sourceblock = [i for i in range(1, NUMBER_OF_BLOCKS + 1)]
 destblock = [i for i in range(1, NUMBER_OF_BLOCKS + 1)]
-craneid = [i for i in range (1, NC + 1)]
+craneid = [i for i in range(1, NC + 1)]
 shifts = [1]
 
 
-#import random
+# import random
 #
-#Random = []
-#for i in range(NUMBER_OF_BLOCKS):
+# Random = []
+# for i in range(NUMBER_OF_BLOCKS):
 #    x = random.randint(0, 2)
 #    Random.append(x)
 ## print(Random)
-#IT = []
-#for i in range(1, NUMBER_OF_BLOCKS + 1):
+# IT = []
+# for i in range(1, NUMBER_OF_BLOCKS + 1):
 #    for j in range(1, 2):
 #        IT.append(tuple([i, j]))
 ## print(IT)
-#H = dict(zip(IT, Random))
-#print("H=", H)
+# H = dict(zip(IT, Random))
+# print("H=", H)
 #
-#import random
+# import random
 #
-#Random = []
-#for i in range(NUMBER_OF_BLOCKS):
+# Random = []
+# for i in range(NUMBER_OF_BLOCKS):
 #    x = random.randint(0, 2)
 #    Random.append(x)
 ## print(Random)
-#IT = []
-#for i in range(1, NUMBER_OF_BLOCKS + 1):
+# IT = []
+# for i in range(1, NUMBER_OF_BLOCKS + 1):
 #    for j in range(1, 2):
 #        IT.append(tuple([i, j]))
 ## print(IT)
-#b = dict(zip(IT, Random))
-#print("b=", b)
+# b = dict(zip(IT, Random))
+# print("b=", b)
 
-H= {(1, 1): 2, (2, 1): 0, (3, 1): 0, (4, 1): 0, (5, 1): 2, (6, 1): 0}
-b= {(1, 1): 1, (2, 1): 2, (3, 1): 2, (4, 1): 0, (5, 1): 1, (6, 1): 1}
+H = {(1, 1): 2, (2, 1): 0, (3, 1): 0, (4, 1): 0, (5, 1): 2, (6, 1): 0}
+b = {(1, 1): 1, (2, 1): 2, (3, 1): 2, (4, 1): 0, (5, 1): 1, (6, 1): 1}
 
 I = place_blocks()
 
@@ -126,10 +126,12 @@ m.update()
 # Decision variables
 x = {}
 for p in craneid:
-  for i in sourceblock:
-    for j in destblock:
-        for t in shifts:
-            x[i, j, t] = m.addVar(vtype=GRB.BINARY, name="x[%s,%s,%s,%s]" % (p, i, j, t))
+    for i in sourceblock:
+        for j in destblock:
+            for t in shifts:
+                x[i, j, t] = m.addVar(
+                    vtype=GRB.BINARY, name="x[%s,%s,%s,%s]" % (p, i, j, t)
+                )
 
 m.update()
 # Constraints
@@ -138,7 +140,9 @@ m.update()
 
 for t in shifts:
     for i in sourceblock:
-        cont_1 = m.addConstr(quicksum(x[p, i, j, t] for p in craneid for j in destblock) <= 2)
+        cont_1 = m.addConstr(
+            quicksum(x[p, i, j, t] for p in craneid for j in destblock) <= 2
+        )
 ##
 ###the number of yard cranes moving from block j to block i are no more than two
 ##
@@ -151,14 +155,17 @@ for t in shifts:
 for t in shifts:
     for j in sourceblock:
         cont_3 = m.addConstr(
-            (H[j, t] - b[j, t]) <= quicksum(x[p,i, j, t] for p in craneid for i in sourceblock)
+            (H[j, t] - b[j, t])
+            <= quicksum(x[p, i, j, t] for p in craneid for i in sourceblock)
         )
 
 # ensures no yard cranes moves from block ⅈ to any block j at each time period t if it’s number of required yard cranes are less than the number of yard cranes already available at the block.
 for t in shifts:
     for j in destblock:
         if b[j, t] <= H[j, t]:
-            cont_5 = m.addConstr(quicksum(x[p ,j, i, t] for p in craneid for i in sourceblock) == 0)
+            cont_5 = m.addConstr(
+                quicksum(x[p, j, i, t] for p in craneid for i in sourceblock) == 0
+            )
 
 # ensures the total number of yard cranes remaining at block j remains satisfactory after some YC(s) left block j to all blocks at each time period t.
 for t in shifts:
