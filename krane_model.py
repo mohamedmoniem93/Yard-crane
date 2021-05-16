@@ -15,13 +15,13 @@ from output_generators import *
 
 
 # CONSTANTS / INPUTS
-NUMBER_OF_BLOCKS = 10
-ROWS = 5
+NUMBER_OF_BLOCKS = 6
+ROWS = 3
 COLS = 2
 
 sourceblock = [i for i in range(1, NUMBER_OF_BLOCKS + 1)]
 destblock = [i for i in range(1, NUMBER_OF_BLOCKS + 1)]
-NUMBER_OF_SHIFTS = 3
+NUMBER_OF_SHIFTS = 2
 shifts = [i for i in range(1, NUMBER_OF_SHIFTS + 1)]
 
 
@@ -44,7 +44,7 @@ for shift in shifts:
     if not ready_for_model:
         print(f"Spare cranes are needed with the following distribution: {penalty}")
         # Update b with added cranes
-        add_penalty_cranes_to_b(b, penalty, shift)
+        sub_penalty_cranes_from_h(H, penalty, shift)
         # Add penalty distance to y
         curr_y += calculate_penalty_distance(penalty)
         print(f"Added penalty of {curr_y} to the total distance")
@@ -80,6 +80,8 @@ for shift in shifts:
     # m.write("mod.lp")
     m.optimize()
     m.printAttr("x", "x*")
+    print(f"h={H}")
+    print(f"b={b}")
 
     # OUTPUT
     opt_x = get_optimum_x(m)
@@ -92,6 +94,7 @@ for shift in shifts:
 
     print(f"Y for current shift: {shift} equals = {curr_y}")
     print(f"SHIFT={shift}, Updated b,\n {b}")
+    print(f"h={H}")
 
 
 print(f"Total Y: {total_y}")

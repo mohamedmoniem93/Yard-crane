@@ -108,32 +108,21 @@ def input_ready(number_of_blocks, b, h, cur_shift):
 
     penalty = int(h_sum - b_sum)
 
-    # Assign random positions for penalty cranes
-    for _ in range(0, penalty):
-        random_block = random.randint(1, number_of_blocks)
-        # This is a constraint, we can't have more than 2 cranes per block
-        while b[(random_block, cur_shift)] == 2:
-            random_block = random.randint(1, number_of_blocks)
-
-        # Check if we already added a penalty block before
-        if random_block in penalty_dict:
-            penalty_dict[random_block] += 1
-        else:
-            penalty_dict[random_block] = 1
-
-    return False, penalty_dict
+    # Insert penalty at each block where H is more than b
+    for block in range(1, number_of_blocks + 1):
+        
 
 
-def add_penalty_cranes_to_b(b, penalty, cur_shift):
+def sub_penalty_cranes_from_h(h, penalty, cur_shift):
     """
-    Add penalty blocks to b(available cranes)
-    :param b: Available cranes dictionary
+    Substract penalty blocks from h(Needed cranes)
+    :param h: Needed cranes dictionary
     :param penalty: Dictionary containing blocks to the penalty cranes
-    penalty = {1: 2, 2: 4}, this means that we will add 2 cranes to first block and 4 cranes to second block
-    :return: Nothing, just updates b
+    penalty = {1: 2, 2: 4}, this means that we will sub 2 cranes from the first block and 4 cranes from second block
+    :return: Nothing, just updates h
     """
     for block, value in penalty.items():
-        b[(block, cur_shift)] += value
+        h[(block, cur_shift)] -= value
 
 
 def calculate_penalty_distance(penalty):
