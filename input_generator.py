@@ -1,5 +1,5 @@
 import random
-
+import math
 
 def place_blocks(ROWS, COLS, NUMBER_OF_BLOCKS):
     """
@@ -22,16 +22,33 @@ def place_blocks(ROWS, COLS, NUMBER_OF_BLOCKS):
 
     return grid
 
-
-def create_h(shifts, NUMBER_OF_BLOCKS):
-    """
-    Create a dictionary keys= (block#, shift#): random between (0-2)
-    :returns H (# H= {(1, 1): 2, (2, 1): 0, (3, 1): 0, (4, 1): 0, (5, 1): 2, (6, 1): 0})
-    """
+def create_h_given_workload(shifts, NUMBER_OF_BLOCKS):
+    tc= 240
+    Rc=[(0.79,"F"),(1.58,"E"),(2.40,"R")]
+    f = open("workload.txt", "r")
+    workloads=[]
+    for i in range (1, NUMBER_OF_BLOCKS+1):
+        workloads.append(float(f.readline()))
+    
     h = {}
     for t in shifts:
         for block in range(1, NUMBER_OF_BLOCKS + 1):
-            h[(block, t)] = random.randint(0, 2)
+            random_Rc= random.choice(Rc)
+            h[(block, t)]= (math.ceil(workloads[block-1]/(random_Rc[0]*tc)), random_Rc[1])
+    return h
+    
+def create_h(shifts, NUMBER_OF_BLOCKS):
+    """
+    Create a dictionary keys= (block#, shift#): random between ((0-2), empty string)
+    :returns H (# H= {(1, 1): (2,""), (2, 1): (0,""), (3, 1): (0,""), (4, 1): (0,""), (5, 1): (0,""), (6, 1): (0,"")})
+    """
+    tc= 240
+    Rc=[(0.79,"F"),(1.58,"E"),(2.40,"R")]
+    h = {}
+    for t in shifts:
+        for block in range(1, NUMBER_OF_BLOCKS + 1):
+            random_Rc= random.choice(Rc)
+            h[(block, t)] = (random.randint(0, 2), random_Rc[1])
     return h
 
 
@@ -77,7 +94,7 @@ def calculate_distance_matrix(I, J, y):
             else:
                 y3 = (
                     abs(v1[1] - v2[1]) * 210
-                    + abs(v1[0] - 1)
+                    + abs(v1[0] - 1) * 210
                     + abs(v2[0] - 1) * 46
                     + (2 * yr)
                     + (4 * yt)
@@ -101,7 +118,7 @@ def input_ready(number_of_blocks, b, h, cur_shift):
     h_sum = 0
     for block in range(1, number_of_blocks + 1):
         b_sum += b[(block, cur_shift)]
-        h_sum += h[(block, cur_shift)]
+        h_sum += h[(block, cur_shift)][0]
 
     if b_sum >= h_sum:
         return True, {}
@@ -110,8 +127,13 @@ def input_ready(number_of_blocks, b, h, cur_shift):
 
     # Insert penalty at each block where H is more than b
     for block in range(1, number_of_blocks + 1):
-        
-
+        if b[(block, cur_shift)] < h[(block, cur_shift)][0]:
+            diff = h[(block, cur_shift)][0] - b[(block, cur_shift)]
+            penalty_dict[block] = min(diff, penalty)
+            penalty -= min(diff, penalty)
+            if penalty <= 0:
+                break
+    return False, penalty_dict
 
 def sub_penalty_cranes_from_h(h, penalty, cur_shift):
     """
@@ -122,7 +144,7 @@ def sub_penalty_cranes_from_h(h, penalty, cur_shift):
     :return: Nothing, just updates h
     """
     for block, value in penalty.items():
-        h[(block, cur_shift)] -= value
+        h[(block, cur_shift)] = (h[(block, cur_shift)][0]- value , h[(block, cur_shift)][1])
 
 
 def calculate_penalty_distance(penalty):
@@ -131,8 +153,12 @@ def calculate_penalty_distance(penalty):
     :param penalty: Dictionary of cranes needed per block id
     :return: A integer representing the penalty distance
     """
-    GET_FROM_SPARE_BLOCK_PENALTY = 1000
+    GET_FROM_SPARE_BLOCK_PENALTY = 2000
     added_distance = 0
     for block, value in penalty.items():
         added_distance += value * GET_FROM_SPARE_BLOCK_PENALTY
     return added_distance
+
+if __name__ == "__main__":
+    # Row, cols, shifts
+    create_h_given_workload([1,2],6)
