@@ -32,9 +32,10 @@ def run(ROWS, COLS, NUMBER_OF_SHIFTS):
         b = {}
         total_y = 0
         objective_value = 0
+#        b = create_b_constant(NUMBER_OF_BLOCKS)
         b = create_b(NUMBER_OF_BLOCKS)
-        H = create_h(shifts, NUMBER_OF_BLOCKS)
-#        H = create_h_given_workload(shifts, NUMBER_OF_BLOCKS)
+#        H = create_h(shifts, NUMBER_OF_BLOCKS)
+        H = create_h_given_workload(shifts, NUMBER_OF_BLOCKS)
         
         with open('H_values_before.csv', 'w') as fh:    
             print("block, shift, required cranes, designation", file=fh)
@@ -107,7 +108,7 @@ def run(ROWS, COLS, NUMBER_OF_SHIFTS):
             print(f"Y for current shift: {shift} equals = {curr_y}", file=f)
     #        print(f"SHIFT={shift}, Updated b,\n {b}")
     #        print(f"h={H}")
-            print(f"energy consumption for current shift ={m.getObjective().getValue() + sparecranes_distance*0.02}", file=f)
+            print(f"energy consumption for current shift ={m.getObjective().getValue() + 2*sparecranes_distance*0.02}", file=f)
             
             print("End shift", file=f)
             print("--------------------------------", file=f)
