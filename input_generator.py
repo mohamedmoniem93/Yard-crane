@@ -58,6 +58,19 @@ def create_h(shifts, NUMBER_OF_BLOCKS):
             h[(block, t)] = (random.randint(0, 2), random_Re[1])
     return h
 
+def create_h_constant(shifts, NUMBER_OF_BLOCKS):
+    """
+    Create a dictionary keys= (block#, shift#): Reads workloads and calculate H, Block Designation)
+    :returns H (# H= {(1, 1): (2,R), (2, 1): (0,E), (3, 1): (0,F), (4, 1): (0,""), (5, 1): (0,""), (6, 1): (0,"")})
+    """
+    hconstant = open("hconstant.csv", "r")
+    h={}
+    for shift in shifts:
+        for block in range(1, NUMBER_OF_BLOCKS + 1):
+            line = hconstant.readline()
+            value, designation = line.split(",")
+            h[(block, shift)]= (int(value), designation)
+    return h
 
 def create_b(NUMBER_OF_BLOCKS):
     """
@@ -84,7 +97,7 @@ def create_b_constant(NUMBER_OF_BLOCKS):
     b = {}
     t = 1
     for block in range (1, NUMBER_OF_BLOCKS+1):
-       b[(block, t)] = bvalues
+       b[(block, t)] = bvalues[block-1]
     return b
        
 #    b={(1, 1): 1, (2, 1): 0, (3, 1): 1, (4, 1): 0, (5, 1): 2, (6, 1): 0, (7, 1): 0, (8, 1): 2, (9, 1): 0, (10, 1): 2, (11, 1): 1, (12, 1): 0, (13, 1): 2, (14, 1): 2, (15, 1): 0, (16, 1): 2, (17, 1): 2, (18, 1): 0, (19, 1): 2, (20, 1): 1}

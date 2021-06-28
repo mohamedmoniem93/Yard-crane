@@ -32,11 +32,12 @@ def run(ROWS, COLS, NUMBER_OF_SHIFTS):
         b = {}
         total_y = 0
         objective_value = 0
-#        b = create_b_constant(NUMBER_OF_BLOCKS)
-        b = create_b(NUMBER_OF_BLOCKS)
+        b = create_b_constant(NUMBER_OF_BLOCKS)
+#        b = create_b(NUMBER_OF_BLOCKS)
 #        H = create_h(shifts, NUMBER_OF_BLOCKS)
         H = create_h_given_workload(shifts, NUMBER_OF_BLOCKS)
-        
+#        H = create_h_constant(shifts, NUMBER_OF_BLOCKS)
+
         with open('H_values_before.csv', 'w') as fh:    
             print("block, shift, required cranes, designation", file=fh)
             for key, value in H.items():
